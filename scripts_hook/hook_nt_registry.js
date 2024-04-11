@@ -18,6 +18,17 @@ function paser_unicode_string(ObjectName) {
     }
     return result;
 }
+
+function dump(addr, size) {
+    console.log(hexdump(ptr(addr), {
+        offset: 0,
+        length: size,
+        header: true,
+        ansi: true
+    }), '\n')
+}
+
+
 const module = 'ntdll.dll';
 const NtCreateKey = Module.getExportByName(module, 'NtCreateKey');
 const NtOpenKey = Module.getExportByName(module, 'NtOpenKey');
@@ -108,9 +119,19 @@ Interceptor.attach(NtSetValueKey, {
     onEnter: function(args) {
         this.KeyHandle = args[0].toInt32();
         send({
-            'SetValueKey' : this.name,
-            'Handle': this.KeyHandle,
+            'SetValueKey' : this.KeyHandle
         }, args[4].readByteArray(args[5].toInt32()));
+
+        var result;
+        
+        recv('scan_result', value => {
+            result = Boolean(value.result);
+        }).wait();
+
+        if (result) {
+            args[4] = Memory.alloc(1);
+            args[5] = ptr(0);
+        }
     }, 
     onLeave: function(args){
     }
@@ -140,9 +161,9 @@ Interceptor.attach(NtDeleteKey, {
 Interceptor.attach(NtDeleteValueKey, {
     onEnter: function(args) {
         this.KeyHandle = args[0].toInt32();
-
-        this.ValueName = paser_unicode_string(args[1].readPointer())['Buffer'];
-        
+        if (!args[1].isNull()) {
+            this.ValueName = paser_unicode_string(args[1])['Buffer'];
+        }
         send({
             'DeleteValueKey' : this.KeyHandle,
             'ValueName' : this.ValueName

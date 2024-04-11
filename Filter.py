@@ -6,7 +6,6 @@ system_paths = [
 ]
 
 filenames = [
-    "*",
     "ConsoleHost_history.txt".lower(),
     "StartupProfileData-Interactive".lower()
 ]

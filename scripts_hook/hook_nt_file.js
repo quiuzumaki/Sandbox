@@ -53,7 +53,7 @@ Interceptor.attach(NtCreateFile, {
             'Handle': this.FileHandle,
         })
     }
-})
+});
 
 // __kernel_entry NTSYSCALLAPI NTSTATUS NtOpenFile(
 //     [out] PHANDLE            FileHandle,
@@ -77,7 +77,7 @@ Interceptor.attach(NtOpenFile, {
             'Handle': this.FileHandle
         })
     }
-})
+});
 
 // __kernel_entry NTSYSCALLAPI NTSTATUS NtWriteFile(
 //     [in]           HANDLE           FileHandle,
@@ -94,18 +94,25 @@ Interceptor.attach(NtOpenFile, {
 Interceptor.attach(NtWriteFile, {
     onEnter: function(args) {
         this.FileHandle = args[0].toInt32();
+        
         send({
             'WriteFile': this.FileHandle
         }, args[5].readByteArray(args[6].toInt32()));
+        
+        var result;
+        
+        recv('scan_result', value => {
+            result = Boolean(value.result);
+        }).wait();
 
-        // recv('scan_result', function (value) {
-        //     var data = value.payload;
-        //     console.log('received bytes from python:', data);
-        // }).wait();
+        if (result) {
+            args[5] = Memory.alloc(1);
+            args[6] = ptr(0);
+        }
     }, 
     onLeave: function(args){
     }
-})
+});
 
 // __kernel_entry NTSYSCALLAPI NTSTATUS NtReadFile(
 //     [in]           HANDLE           FileHandle,
@@ -129,4 +136,72 @@ Interceptor.attach(NtReadFile, {
     }, 
     onLeave: function(args){
     }
-})
+});
+
+
+function DeleteFile(unicode) {
+    var pDeleteFile = unicode ? Module.getExportByName(null, 'DeleteFileW') 
+                                : Module.getExportByName(null, 'DeleteFileA');
+
+    Interceptor.replace(pDeleteFile, new NativeCallback( (lpFileName) => {
+        var filename = unicode ? lpFileName.readUtf16String() : lpFileName.readUtf8String();
+        send({
+            'DeleteFile': filename
+        });
+        return 1;
+    }, 'bool', ['pointer']));
+};
+
+DeleteFile(0);
+DeleteFile(1);
+
+// BOOL MoveFile(
+//     [in] LPCTSTR lpExistingFileName,
+//     [in] LPCTSTR lpNewFileName
+//   );
+
+function MoveFile(unicode) {
+    var pMoveFile = unicode ? Module.getExportByName(null, 'MoveFileeW') 
+                                : Module.getExportByName(null, 'MoveFileA');
+
+    Interceptor.replace(pMoveFile, new NativeCallback( (lpExistingFileName, lpNewFileName) => {
+        var ExistingFileName = unicode ? lpExistingFileName.readUtf16String() : lpExistingFileName.readUtf8String();
+        var NewFileName = unicode ? lpNewFileName.readUtf16String() : lpNewFileName.readUtf8String(); 
+        send({
+            'MoveFile': {
+                'ExistingFileName' : ExistingFileName,
+                'NewFileName' : NewFileName
+            }
+        });
+        return 1;
+    }, 'bool', ['pointer', 'pointer']));
+}
+
+MoveFile(0);
+MoveFile(1)
+
+// BOOL CopyFile(
+//     [in] LPCTSTR lpExistingFileName,
+//     [in] LPCTSTR lpNewFileName,
+//     [in] BOOL    bFailIfExists
+//   );
+
+function CopyFile(unicode) {
+    var pCopyFile = unicode ? Module.getExportByName(null, 'CopyFileW') 
+                                : Module.getExportByName(null, 'CopyFileA');
+
+    Interceptor.replace(pCopyFile, new NativeCallback( (lpExistingFileName, lpNewFileName, bFailIfExists) => {
+        var ExistingFileName = unicode ? lpExistingFileName.readUtf16String() : lpExistingFileName.readUtf8String();
+        var NewFileName = unicode ? lpNewFileName.readUtf16String() : lpNewFileName.readUtf8String(); 
+        send({
+            'CopyFile': {
+                'ExistingFileName' : ExistingFileName,
+                'NewFileName' : NewFileName
+            }
+        });
+        return 1;
+    }, 'bool', ['pointer', 'pointer', 'bool']));
+}
+
+CopyFile(0);
+CopyFile(1);

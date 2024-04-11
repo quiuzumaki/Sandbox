@@ -2,8 +2,8 @@ import yara
 
 class Yara:
     def __init__(self) -> None:
-        self.rules = yara.compile('./rules/rules_file.yar')
-        self.matches = None
+        self.rules = yara.compile(filepath='./rules/rules_file.yar')
+        self.matches = list()
 
     def scan_memory(self, data: bytes) -> bool:
         if not isinstance(data, bytes): return False

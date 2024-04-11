@@ -49,19 +49,17 @@ class ObjectsManager:
     def insert_entry(self, hanle: int, object: Object):
         self.handle_table[hanle] = object
 
-    def is_exist(self, handle):
-        if self.handle_table[handle] == []:
-            return False
-        return True
+    def is_exist(self, handle) -> bool:
+        return True if (handle in self.handle_table.keys()) else False
 
     def keys(self):
         return self.handle_table.keys()
     
-    def get_object(self, handle):
+    def get_object(self, handle) -> Object:
         return self.handle_table.get(handle)
         
-    def remove(self, handle):
+    def remove(self, handle) -> None:
         self.handle_table.pop(handle)
 
-    def size(self):
+    def size(self) -> int:
         return len(self.handle_table)
