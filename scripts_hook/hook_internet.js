@@ -1,3 +1,4 @@
+
 /*
 void InternetOpenUrlW(
   HINTERNET hInternet,
@@ -8,29 +9,28 @@ void InternetOpenUrlW(
   DWORD_PTR dwContext
 );
 */
-function InternetOpenUrl(opts) {
-	var pInternetOpenUrl = opts.unicode ? Module.findExportByName("wininet.dll", "InternetOpenUrlW")
+function InternetOpenUrl(unicode) {
+	var pInternetOpenUrl = unicode ? Module.findExportByName("wininet.dll", "InternetOpenUrlW")
                                         : Module.findExportByName("wininet.dll", "InternetOpenUrlA");
-	if(null == pInternetOpenUrl)
+	if(pInternetOpenUrl == undefined)
 		return 0;
 
 	Interceptor.attach(pInternetOpenUrl, {
 		onEnter: function(args) {
-			var url = opts.unicode ? args[1].readUtf16String() : args[1].readUtf8String();
+			var url = unicode ? args[1].readUtf16String() : args[1].readUtf8String();
 			send({
 				'InternetOpenUrl': url
 			});
 		}
 	});
-	return 1;
 }
 
 /*
 INT WSAAPI GetAddrInfoW(
-  PCWSTR          pNodeName,
-  PCWSTR          pServiceName,
-  const ADDRINFOW *pHints,
-  PADDRINFOW      *ppResult
+	PCWSTR          pNodeName,
+	PCWSTR          pServiceName,
+	const ADDRINFOW *pHints,
+	PADDRINFOW      *ppResult
 );
 INT WSAAPI GetAddrInfoExW(
   PCWSTR                             pName,
@@ -55,18 +55,17 @@ function GetAddrInfo(opts) {
                                         : Module.findExportByName("ws2_32.dll", "getaddrinfo");
     }
 
-	if(null == pGetAddrInfo)
-		return 0;
+	if(pGetAddrInfo == undefined) send({'error': 'GetAddrInfo'});
 
 	Interceptor.attach(pGetAddrInfo, {
 		onEnter: function(args) {
 			var domain = opts.unicode ? args[0].readUtf16String() : args[0].readUtf8String();
+			this.ppResult = args[3];
 			send({
-				'GetAddrInfo': domain
+				'GetAddrInfo': domain,
 			});
 		}
 	});
-	return 1;
 }
 
 // WINHTTPAPI HINTERNET WinHttpOpen(
@@ -77,78 +76,72 @@ function GetAddrInfo(opts) {
 //     [in]           DWORD   dwFlags
 //   );
 
+// WINHTTPAPI BOOL WinHttpCreateUrl(
+// 	[in]      LPURL_COMPONENTS lpUrlComponents,
+// 	[in]      DWORD            dwFlags,
+// 	[out]     LPWSTR           pwszUrl,
+// 	[in, out] LPDWORD          pdwUrlLength
+//);
+
 function WinHttp() {
     var pWinHttpOpen = Module.findExportByName("winhttp.dll", "WinHttpOpen");
     var pWinHttpCreateUrl = Module.findExportByName("winhttp.dll", "WinHttpCreateUrl");
+	
+	if (pWinHttpOpen == undefined) send({'error': 'WinHttpOpen'});
+	if (pWinHttpCreateUrl == undefined) send({'error': 'WinHttpCreateUrl'});
+
     Interceptor.attach(pWinHttpOpen, {
         onEnter: function(args) {
             var agent = args[0].readUtf16String();
+			var proxy = args[2].readUtf16String();
             send({
-                'WinHttpOpen' : agent
+                'WinHttpOpen' : agent,
+				'Proxy': proxy
             })
         }
     });
     Interceptor.attach(pWinHttpCreateUrl, {
         onEnter: function(args) {
-            var agent = args[2].readUtf16String();
+            var url = args[2].readUtf16String();
             send({
-                'WinHttpCreateUrl' : agent
+                'WinHttpCreateUrl' : url
             })
         }
     });
 }
 
-
-var InternetOpenUrl_ed = 0;
-var GetAddrInfo_ed = 0;
-
-/*
-HMODULE LoadLibraryW(
-  LPCWSTR lpLibFileName
-);
-*/
-function LoadLibrary(opts) {
-	var pLoadLibrary = opts.unicode ? Module.findExportByName(null, "LoadLibraryW")
-	                                : Module.findExportByName(null, "LoadLibraryA")
-	Interceptor.attach(pLoadLibrary, {
+function WinHttpGetProxyForUrl() {
+	var pWinHttpGetProxyForUrl = Module.findExportByName("winhttp.dll", "WinHttpGetProxyForUrl");
+	Interceptor.attach(pWinHttpGetProxyForUrl, {
 		onEnter: function(args) {
-			this.wininet = 0;
-			this.ws2_32  = 0;
-			this.winhttp = 0
-			var libName = (opts.unicode ? args[0].readUtf16String() : args[0].readUtf8String()).toLowerCase();
-			if(libName.startsWith("wininet"))
-				this.wininet = 1;
-			else if(libName.startsWith("ws2_32"))
-				this.ws2_32 = 1;
-			else if (libName.startsWith('winhttp')) {
-				this.winhttp = 1
-			}
-		},
-		onLeave: function(retval) {
-			if(this.wininet == 1 && !InternetOpenUrl_ed) {
-				InternetOpenUrl({unicode: 0});
-				InternetOpenUrl({unicode: 1});
-			} else if(this.ws2_32 == 1 && !GetAddrInfo_ed) {
+			var url = args[1].readUtf16String();
+			send({
+				'WinHttpGetProxyForUrl': url
+			})
+		}
+	})
+}
+
+function GetProcAddress() {
+	var pGetProcAddress = Module.findExportByName(null, 'GetProcAddress');
+	if (pGetProcAddress == undefined) send({'error': 'GetProcAddress'});
+
+	Interceptor.attach(pGetProcAddress, {
+		onEnter: function(args) {
+			var function_name = args[1].readUtf8String();
+			// send({
+			// 	'Function': function_name
+			// })
+			if (function_name.includes('WinHttpOpen')) {
+				WinHttpGetProxyForUrl();
+			} else if (function_name.toLowerCase().includes('getaddrinfo')) {
 				GetAddrInfo({unicode: 0, ex: 0});
 				GetAddrInfo({unicode: 1, ex: 0});
 				GetAddrInfo({unicode: 0, ex: 1});
 				GetAddrInfo({unicode: 1, ex: 1});
-			} else if (this.winhttp == 1) {
-				WinHttp()
 			}
 		}
-	});
+	})
 }
 
-InternetOpenUrl_ed = (InternetOpenUrl({unicode: 0}) && InternetOpenUrl({unicode: 1}));
-
-GetAddrInfo_ed = (GetAddrInfo({unicode: 0, ex: 0}) && 
-                    GetAddrInfo({unicode: 1, ex: 0}) && 
-                    GetAddrInfo({unicode: 0, ex: 1}) && 
-                    GetAddrInfo({unicode: 1, ex: 1}));
-
-if(!InternetOpenUrl_ed || !GetAddrInfo_ed) {       // (wininet.dll | ws2_32.dll) not imported yet
-	LoadLibrary({unicode: 0});
-	LoadLibrary({unicode: 1});
-}
-
+GetProcAddress();

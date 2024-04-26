@@ -1,6 +1,6 @@
 import yara
 
-class Yara:
+class YaraScanner:
     def __init__(self) -> None:
         self.rules = yara.compile(filepath='./rules/rules_file.yar')
         self.matches = list()
