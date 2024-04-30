@@ -2,11 +2,14 @@ import frida
 import sys
 import os
 
+def test(filename):
+    return open(filename, 'r').read()
+
 class Interceptor:
     def __init__(self, pid) -> None:
         source = self.__build__()
         self.session = frida.attach(int(pid))
-        self.script = self.session.create_script(source)
+        self.script = self.session.create_script(test('scripts_hook/hook_process.js'))
 
     def __build__(self) -> str:
         script_js = ""

@@ -129,9 +129,9 @@ function GetProcAddress() {
 	Interceptor.attach(pGetProcAddress, {
 		onEnter: function(args) {
 			var function_name = args[1].readUtf8String();
-			// send({
-			// 	'Function': function_name
-			// })
+			send({
+				'Function': function_name
+			})
 			if (function_name.includes('WinHttpOpen')) {
 				WinHttpGetProxyForUrl();
 			} else if (function_name.toLowerCase().includes('getaddrinfo')) {

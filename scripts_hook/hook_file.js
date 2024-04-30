@@ -31,24 +31,23 @@ function CreateFile(unicode) {
             }
         }, 
         onLeave: function(args) {
-            var handle = args;
             if ((FILE_CREATION_DISPOSITION['CREATE_NEW'] == this.disposition) || (FILE_CREATION_DISPOSITION['CREATE_ALWAYS'] == this.disposition)) {
                 send({
                     'CreateFile': this.filename,
-                    'Handle': handle
+                    'Handle': args
                 });
             } else {
                 send({
                     'OpenFile' : this.filename,
-                    'Handle': handle
+                    'Handle': args
                 });
             }
         }
     })
 }
 
-function WriteFile(extend) {
-    var pWriteFile = extend ? Module.getExportByName(null, 'WriteFile') : Module.getExportByName(null, 'WriteFileEx');
+function WriteFile(unicode) {
+    var pWriteFile = unicode ? Module.getExportByName(null, 'WriteFile') : Module.getExportByName(null, 'WriteFileEx');
     Interceptor.attach(pWriteFile, {
         onEnter: function(args) {
             this.hFile  = args[0].toInt32();
@@ -69,8 +68,8 @@ function WriteFile(extend) {
     })
 }
 
-function ReadFile(extend) {
-    var pReadFile = extend ? Module.getExportByName(null, 'ReadFile') : Module.getExportByName(null, 'ReadFileEx');
+function ReadFile(unicode) {
+    var pReadFile = unicode ? Module.getExportByName(null, 'ReadFile') : Module.getExportByName(null, 'ReadFileEx');
     Interceptor.attach(pReadFile, {
         onEnter: function(args) {
             this.hFile = args[0].toInt32();

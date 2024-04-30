@@ -32,7 +32,11 @@ def file(payload: dict, data = None):
                 filename = str(path_file).split('\\')[-1]
                 tmp_filename = tmp_dir + '\\' + filename
                 report.add_create_file(path_file)
-                interceptor.send({'type': 'scan_result', 'result': True, 'tmp_file': tmp_filename})
+                interceptor.send({
+                    'type': 'scan_result', 
+                    'result': True, 
+                    'tmp_file': tmp_filename
+                })
         else:
             sandbox.insert_entry(handle, ObjectFile(path_file))
             tmp_filename = None
@@ -88,7 +92,10 @@ def registry(payload: dict, data = None):
         if sandbox.scan_memory(payload['RegSetValue'], data, meta):
             result = True
             report.add_set_value(payload['RegSetValue'])
-        interceptor.send({'type': 'scan_result', 'result': result})
+        interceptor.send({
+            'type': 'scan_result', 
+            'result': result
+        })
 
     elif keys[0] == 'RegDeleteKey':
         report.add_delete_key(payload['RegDeleteKey'])
