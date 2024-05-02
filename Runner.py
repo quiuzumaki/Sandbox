@@ -1,13 +1,14 @@
-import sys
+import sys, argparse
 
-from ObjectsManager import ObjectFile, ObjectRegistry, ObjectProcess
+from ObjectsManager import ObjectFile, ObjectRegistry
 from Sandbox import Sandbox
 from Report import Report
 from Interceptor import Interceptor
 
+
 sandbox = Sandbox()
 report = Report()
-interceptor = Interceptor(sys.argv[1])
+interceptor = None
 
 def create_dir() -> str:
     import os
@@ -19,30 +20,33 @@ def create_dir() -> str:
 
 tmp_dir = create_dir()
 tmp_filename =  None
+script_ps_name = None
 
 def file(payload: dict, data = None):
     keys = list(payload.keys())
     meta = []
     if keys[0] == 'CreateFile':
-        result = False
         handle = int(payload['Handle'], 16)
         path_file = payload['CreateFile']
         if handle == -1:
             if not sandbox.filter_file(path_file):
-                filename = str(path_file).split('\\')[-1]
-                tmp_filename = tmp_dir + '\\' + filename
-                report.add_create_file(path_file)
+                tmp_filename = tmp_dir + '\\' + str(path_file).split('\\')[-1]
                 interceptor.send({
                     'type': 'scan_result', 
                     'result': True, 
                     'tmp_file': tmp_filename
                 })
+                report.add_create_file(path_file)
         else:
             sandbox.insert_entry(handle, ObjectFile(path_file))
             tmp_filename = None
 
     elif keys[0] == 'OpenFile':
         handle = int(payload['Handle'], 16)
+
+        if payload['OpenFile'].split('\\')[-1] == script_ps_name:
+            return
+        
         if sandbox.filter(handle, ObjectFile(payload['OpenFile'])) == False:
             report.add_open_file(payload['OpenFile'])
 
@@ -51,6 +55,7 @@ def file(payload: dict, data = None):
         handle = int(payload['ReadFile'])
 
         if sandbox.scan_memory(handle, data, meta): 
+            result = True
             ob_name = sandbox.get_objects_manager().get_object_name(handle)
             report.add_read_file({'FileName': ob_name})
         
@@ -146,6 +151,26 @@ def on_message(message, data):
         print('something error here')
         print(message)
 
-interceptor.recv(on_message)
-interceptor.on_detached(on_detached)
-interceptor.run()
+def main():
+    parser = argparse.ArgumentParser(description='')
+    parser.add_argument('-p', '--pid', type=int , help="PID of the process", required=True)
+    parser.add_argument('-f', '--file', type=str, help='path to the Script PowerShell')
+
+    args = parser.parse_args()
+    pid = args.pid
+
+    if args.file != None:
+        print(file)
+        global script_ps_name
+        script_ps_name = args.file
+
+    global interceptor
+
+    interceptor = Interceptor(pid)
+    interceptor.recv(on_message)
+    interceptor.on_detached(on_detached)
+    interceptor.run()
+
+
+if __name__ == '__main__':
+    main()
