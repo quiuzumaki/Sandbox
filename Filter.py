@@ -1,16 +1,16 @@
-system_paths = [
+SYSTEM_PATHS = [
     "C:\\Program Files".lower(),
     "C:\\Program Files (x86)".lower(),
     "C:\\ProgramData".lower(),
     "C:\\Windows".lower()
 ]
 
-filenames = [
+FILENAMES = [
     "ConsoleHost_history.txt".lower(),
     "StartupProfileData-Interactive".lower()
 ]
 
-persistence_path = [
+PERSISTENCE_PATH = [
     'Software\\Microsoft\\Windows\\CurrentVersion\\Run'.lower(),
     'Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce'.lower(),
     'Software\\Microsoft\\Windows\\CurrentVersion\\RunOnceEx'.lower(),

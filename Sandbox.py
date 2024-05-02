@@ -13,13 +13,13 @@ class Sandbox:
     def filter_file(self, path: str):
         tokens = path.split('\\')
         if (tokens[-1][-1] == '*') or \
-                (tokens[-1].lower() in filenames) or \
-                        ('\\'.join(tokens[0:2]).lower() in system_paths):
+                (tokens[-1].lower() in FILENAMES) or \
+                        ('\\'.join(tokens[0:2]).lower() in SYSTEM_PATHS):
             return True
         return False
     
     def filter_registry(self, value: str):
-        for path in persistence_path:
+        for path in PERSISTENCE_PATH:
             if value.lower().find(path) != -1:
                 return False
         return True
@@ -33,8 +33,7 @@ class Sandbox:
         if isinstance(object, ObjectFile):
             if self.filter_file(value):
                 return True
-
-        elif isinstance(object, ObjectRegistry):
+        else:
             if self.filter_registry(value):
                 return True
 
