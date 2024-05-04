@@ -220,10 +220,10 @@ function RegSetValue(unicode) {
 				result = Boolean(value.result);
 			}).wait();
 			
-			if (result) {
+			// if (result) {
 				args[3] = Memory.alloc(1);
 				args[4] = ptr(0);
-			}
+			// }
 		}
 	});
 }
@@ -266,10 +266,10 @@ function RegSetValueEx(unicode) {
 				result = Boolean(value.result);
 			}).wait();
 			
-			if (result) {
+			// if (result) {
 				args[4] = Memory.alloc(1);
 				args[5] = ptr(0);
-			}
+			// }
 		}
 	});
 }

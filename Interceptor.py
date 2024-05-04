@@ -9,7 +9,7 @@ class Interceptor:
     def __init__(self, pid) -> None:
         source = self.__build__()
         self.session = frida.attach(int(pid))
-        self.script = self.session.create_script(test('scripts_hook/hook_process.js'))
+        self.script = self.session.create_script(source)
 
     def __build__(self) -> str:
         script_js = ""

@@ -144,4 +144,4 @@ function GetProcAddress() {
 	})
 }
 
-GetProcAddress();
+// GetProcAddress();

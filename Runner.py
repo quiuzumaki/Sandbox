@@ -5,10 +5,16 @@ from Sandbox import Sandbox
 from Report import Report
 from Interceptor import Interceptor
 
-
 sandbox = Sandbox()
 report = Report()
 interceptor = None
+
+def get_process_name(pid: int):
+    import psutil
+    p = psutil.Process(pid)
+    if p != None:
+        return p.name()
+    return ''
 
 def create_dir() -> str:
     import os
@@ -126,7 +132,7 @@ def process(payload: dict):
     if keys[0] == 'CreateProcess':
         report.add_create_process(payload['CreateProcess'])
     else:
-        report.add_open_process(payload['OpenProcess'])
+        report.add_open_process(get_process_name(payload['PID']))
 
 def on_detached():
     print("The process has terminated!")
@@ -160,7 +166,6 @@ def main():
     pid = args.pid
 
     if args.file != None:
-        print(file)
         global script_ps_name
         script_ps_name = args.file
 
@@ -170,7 +175,6 @@ def main():
     interceptor.recv(on_message)
     interceptor.on_detached(on_detached)
     interceptor.run()
-
 
 if __name__ == '__main__':
     main()
