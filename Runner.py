@@ -4,27 +4,13 @@ from ObjectsManager import ObjectFile, ObjectRegistry
 from Sandbox import Sandbox
 from Report import Report
 from Interceptor import Interceptor
+from Utils import *
 
 sandbox = Sandbox()
 report = Report()
 interceptor = None
 
-def get_process_name(pid: int):
-    import psutil
-    p = psutil.Process(pid)
-    if p != None:
-        return p.name()
-    return ''
-
-def create_dir() -> str:
-    import os
-    current_directory = os.getcwd()
-    final_directory = os.path.join(current_directory, r'tmp')
-    if not os.path.exists(final_directory):
-        os.makedirs(final_directory)
-    return final_directory
-
-tmp_dir = create_dir()
+tmp_dir = create_dir('tmp')
 tmp_filename =  None
 script_ps_name = None
 
@@ -154,7 +140,6 @@ def on_message(message, data):
             internet(payload)
         print(sandbox)
     else:
-        print('something error here')
         print(message)
 
 def main():
@@ -177,4 +162,7 @@ def main():
     interceptor.run()
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        pass

@@ -55,7 +55,7 @@ function WriteFile(unicode) {
                 'WriteFile': this.hFile
             }, args[1].readByteArray(args[2].toInt32()));
     
-            var result;
+            var result = false;
             recv('scan_result', value => {
                 result = Boolean(value.result);
             }).wait();
@@ -81,7 +81,7 @@ function ReadFile(unicode) {
                 'ReadFile': this.hFile,
             }, this.Buffer.readByteArray(this.size))
 
-            var result;
+            var result = false;
             recv('scan_result', value => {
                 result = Boolean(value.result);
             }).wait();

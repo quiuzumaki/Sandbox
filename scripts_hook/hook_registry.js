@@ -261,7 +261,7 @@ function RegSetValueEx(unicode) {
 				'Handle': this.handle
 			}, args[4].readByteArray(args[5].toInt32()));
 
-			var result;
+			var result = false;
 			recv('scan_result', value => {
 				result = Boolean(value.result);
 			}).wait();

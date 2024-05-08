@@ -1,6 +1,6 @@
 __pycache__/
 tmp/
-report.json
+reports/
 GetProcAddress.js
 demo.ps1
 token.txt

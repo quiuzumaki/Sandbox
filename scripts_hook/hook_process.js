@@ -19,64 +19,6 @@ Interceptor.attach(pOpenProcess, {
 	}
 });
 
-/*
-LPVOID VirtualAllocEx(
-  HANDLE hProcess,
-  LPVOID lpAddress,
-  SIZE_T dwSize,
-  DWORD  flAllocationType,
-  DWORD  flProtect
-);
-*/
-function VirtualAllocEx() {
-	var pVirtualAllocEx = Module.findExportByName(null, "VirtualAllocEx");
-	Interceptor.attach(pVirtualAllocEx, {
-		onEnter: function(args) {
-			send({
-				'VirtualAllocEx' : args[0].toInt32()
-			});
-		}
-	});
-}
-
-VirtualAllocEx();
-
-/**
-LPVOID VirtualAlloc(
-  [in, optional] LPVOID lpAddress,
-  [in]           SIZE_T dwSize,
-  [in]           DWORD  flAllocationType,
-  [in]           DWORD  flProtect
-);
- */
-function VirtualAlloc() {
-	var pVirtualAlloc = Module.findExportByName(null, "VirtualAlloc");
-	if (pVirtualAlloc == undefined) return;
-	Interceptor.attach(pVirtualAlloc, {
-		onEnter: function(args) {
-			this.lpAddress = args[0]
-		}, 
-		onLeave: function(retval) {
-			send({
-				'VirtualAlloc' : this.lpAddress,
-				'ret': retval
-			})
-		}
-	});
-}
-
-// VirtualAlloc();
-
-// var pRtCopyMemory = Module.findExportByName(null, 'MoveMemory');
-// if (pRtCopyMemory == undefined) console.log('not found');
-// Interceptor.attach(pRtCopyMemory, {
-// 	onEnter: function(args) {
-// 		send({
-// 			'RtCopyMemory': args[2]
-// 		})
-// 	}
-// })
-
 /**
 BOOL CreateProcessA(
 	LPCSTR                lpApplicationName,
@@ -122,12 +64,3 @@ function CreateProcess(unicode) {
 
 CreateProcess(0);
 CreateProcess(1);
-
-function dump(addr, size) {
-    console.log(hexdump(ptr(addr), {
-        offset: 0,
-        length: size,
-        header: true,
-        ansi: true
-    }), '\n')
-}

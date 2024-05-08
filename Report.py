@@ -1,4 +1,7 @@
 import json
+from Utils import create_dir
+
+REPORT_PATH = 'reports'
 
 class Report:
     def __init__(self) -> None:
@@ -84,6 +87,7 @@ class Report:
         self.report['Network']['URL'].append(data)
 
     def dump(self) -> None:
-        f = open('report.json', 'w')
+        create_dir(REPORT_PATH)
+        f = open(REPORT_PATH + '/report.json', 'w')
         f.write(json.dumps(self.report, indent=4))
         
