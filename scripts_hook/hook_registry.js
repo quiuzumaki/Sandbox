@@ -61,7 +61,7 @@ LSTATUS RegCreateKeyExW(
 */
 
 function RegCreateKeyEx(unicode) {
-    var pRegCreateKeyEx = unicode ? Module.findExportByName(null, "RegCreateKeyExW") : Module.findExportByName(null, "RegCreateKeyExA");    	
+    var pRegCreateKeyEx = unicode ? Module.findExportByName('kernel32.dll', "RegCreateKeyExW") : Module.findExportByName('kernel32.dll', "RegCreateKeyExA");    	
 	Interceptor.attach(pRegCreateKeyEx, {
 		onEnter: function(args) {
 			this.keyname = unicode ? args[1].readUtf16String() : args[1].readUtf8String();
@@ -135,7 +135,7 @@ LSTATUS RegOpenKeyExW(
 */
 
 function RegOpenKeyEx(unicode) {
-	var pRegOpenKeyEx = unicode ? Module.findExportByName(null, "RegOpenKeyExW") : Module.findExportByName(null, "RegOpenKeyExA");    	
+	var pRegOpenKeyEx = unicode ? Module.findExportByName('kernel32.dll', "RegOpenKeyExW") : Module.findExportByName('kernel32.dll', "RegOpenKeyExA");    	
 	Interceptor.attach(pRegOpenKeyEx, {
 		onEnter: function(args) {
 			this.keyname = unicode ? args[1].readUtf16String() : args[1].readUtf8String();
@@ -169,8 +169,8 @@ LSTATUS RegQueryValueExW(
 */
 
 function RegQueryValueEx(unicode) {
-	var pRegQueryValueEx = unicode ? Module.findExportByName(null, "RegQueryValueExW")
-                                        : Module.findExportByName(null, "RegQueryValueExA");
+	var pRegQueryValueEx = unicode ? Module.findExportByName('kernel32.dll', "RegQueryValueExW")
+                                        : Module.findExportByName('kernel32.dll', "RegQueryValueExA");
 	Interceptor.attach(pRegQueryValueEx, {
 		onEnter: function(args) {
 			var regvalue = unicode ? args[1].readUtf16String() : args[1].readUtf8String();
@@ -183,8 +183,8 @@ function RegQueryValueEx(unicode) {
 	});
 }
 
-RegQueryValueEx(0);
-RegQueryValueEx(1);
+// RegQueryValueEx(0);
+// RegQueryValueEx(1);
 
 /*
 LSTATUS RegSetValueA(
@@ -204,26 +204,22 @@ function RegSetValue(unicode) {
 			this.subkey = unicode ? args[1].readUtf16String() : args[1].readUtf8String();
 			this.handle = args[0].toInt32();
             var hKey = REG_KEYS[args[0].toInt32()];
-			
-            if(hKey != undefined)
-				this.keyname = hKey + "\\" + this.subkey;
-			else
-				this.keyname = "\\" + this.subkey;
-            
+
+            this.keyname = hKey != undefined ? hKey + "\\" + this.subkey : "\\" + this.subkey;
             send({
 				'RegSetValue': this.keyname,
 				'Handle': this.handle
 			}, args[3].readByteArray(args[4].toInt32()));
+			var result = false;
 
-			var result;
 			recv('scan_result', value => {
 				result = Boolean(value.result);
 			}).wait();
 			
-			// if (result) {
+			if (result) {
 				args[3] = Memory.alloc(1);
-				args[4] = ptr(0);
-			// }
+				args[4].writeInt(1);
+			}
 		}
 	});
 }
@@ -243,33 +239,28 @@ LSTATUS RegSetValueExW(
 */
 
 function RegSetValueEx(unicode) {
-	var pRegSetValueEx = unicode ? Module.findExportByName(null, "RegSetValueExW")
-                                      : Module.findExportByName(null, "RegSetValueExA");
+	var pRegSetValueEx = unicode ? Module.findExportByName('kernel32.dll', "RegSetValueExW")
+                                      : Module.findExportByName('kernel32.dll', "RegSetValueExA");
 	Interceptor.attach(pRegSetValueEx, {
 		onEnter: function(args) {
 			this.valuename = unicode ? args[1].readUtf16String() : args[1].readUtf8String();
 			this.handle = args[0].toInt32();
-            // var hKey = REG_KEYS[args[0].toInt32()];
-			
-            // if(hKey != undefined)
-			// 	this.keyname = hKey + "\\" + this.valuename;
-			// else
-			// 	this.keyname = "\\" + this.valuename;
-            
+            const cbData = args[5].toInt32();
+			const buffer = Memory.readByteArray(args[4], cbData);
             send({
 				'RegSetValueEx': this.valuename,
 				'Handle': this.handle
-			}, args[4].readByteArray(args[5].toInt32()));
+			}, buffer);
 
 			var result = false;
 			recv('scan_result', value => {
 				result = Boolean(value.result);
 			}).wait();
 			
-			// if (result) {
+			if (result) {
 				args[4] = Memory.alloc(1);
 				args[5] = ptr(0);
-			// }
+			}
 		}
 	});
 }
@@ -287,7 +278,6 @@ LSTATUS RegDeleteKeyW(
 function RegDeleteKey(unicode) {
 	var pRegDeleteKey = unicode ? Module.findExportByName(null, "RegDeleteKeyW") : Module.findExportByName(null, "RegDeleteKeyA");
 	Interceptor.replace(pRegDeleteKey, new NativeCallback( (hKey, lpSubKey) => {
-
         var subkey = unicode ? lpSubKey.readUtf16String() : lpSubKey.readUtf8String();
         send({  
             'RegDeleteKey': subkey,
@@ -311,17 +301,14 @@ LSTATUS RegDeleteKeyExA(
 */
 
 function RegDeleteKeyEx(unicode) {
-	var RegDeleteKeyEx = unicode ? Module.findExportByName(null, "RegDeleteKeyExW")
-                                       : Module.findExportByName(null, "RegDeleteKeyExA");
+	var RegDeleteKeyEx = unicode ? Module.findExportByName('kernel32.dll', "RegDeleteKeyExW") : Module.findExportByName('kernel32.dll', "RegDeleteKeyExA");
 	Interceptor.replace(RegDeleteKeyEx, new NativeCallback( (hKey, lpSubKey, samDesired, Reserved) => {
-
         var subkey = unicode ? lpSubKey.readUtf16String() : lpSubKey.readUtf8String();
         send({  
             'RegDeleteKey': subkey,
             'Handle': parseInt(hKey)
         })
         return 1;
-
     }, 'int', ['int', 'pointer', 'pointer', 'int']));
 }
 
@@ -336,17 +323,14 @@ LSTATUS RegDeleteValueW(
 */
 
 function RegDeleteValue(unicode) {
-	var pRegDeleteValue = unicode ? Module.findExportByName(null, "RegDeleteValueW")
-                                       : Module.findExportByName(null, "RegDeleteValueA");
+	var pRegDeleteValue = unicode ? Module.findExportByName('kernel32.dll', "RegDeleteValueW") : Module.findExportByName('kernel32.dll', "RegDeleteValueA");
 	Interceptor.replace(pRegDeleteValue, new NativeCallback( (hKey, lpValueName) => {
-
         var valuename = unicode ? lpValueName.readUtf16String() : lpValueName.readUtf8String();
         send({  
             'RegDeleteValue': valuename,
             'Handle': parseInt(hKey)
         });
         return 1;
-
     }, 'int', ['int', 'pointer']));
 }
 
@@ -362,8 +346,7 @@ LSTATUS RegDeleteKeyValueA(
 */
 
 function RegDeleteKeyValue(unicode) {
-	var RegDeleteKeyValue = unicode ? Module.findExportByName(null, "RegDeleteKeyValueW")
-                                       : Module.findExportByName(null, "RegDeleteKeyValueA");
+	var RegDeleteKeyValue = unicode ? Module.findExportByName(null, "RegDeleteKeyValueW") : Module.findExportByName(null, "RegDeleteKeyValueA");
 	Interceptor.replace(RegDeleteKeyValue, new NativeCallback((hKey, lpSubKey, lpValueName) => {
         var subkey = unicode ? lpSubKey.readUtf16String() : lpSubKey.readUtf8String();
         var valuename = unicode ? lpValueName.readUtf16String() : lpValueName.readUtf8String();
@@ -374,7 +357,6 @@ function RegDeleteKeyValue(unicode) {
             'Handle': parseInt(hKey)
         })
         return 1;
-
     }, 'int', ['int', 'pointer', 'pointer']));
 }
 

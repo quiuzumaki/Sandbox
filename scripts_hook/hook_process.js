@@ -6,18 +6,22 @@ HANDLE OpenProcess(
   DWORD dwProcessId
 );
 */
-var pOpenProcess = Module.findExportByName(null, "OpenProcess");
-Interceptor.attach(pOpenProcess, {
-	onEnter: function(args) {
-		this.pid = args[2].toInt32();
-	},
-	onLeave: function(retval) {
-		send({
-			'OpenProcess': retval.toInt32(),
-			'PID': this.pid
-		});
-	}
-});
+function OpenProcess() {
+	var pOpenProcess = Module.findExportByName('kernel32.dll', "OpenProcess");
+	Interceptor.attach(pOpenProcess, {
+		onEnter: function(args) {
+			this.pid = args[2].toInt32();
+		},
+		onLeave: function(retval) {
+			send({
+				'OpenProcess': retval.toInt32(),
+				'PID': this.pid
+			});
+		}
+	});
+}
+
+OpenProcess()
 
 /**
 BOOL CreateProcessA(
@@ -35,7 +39,7 @@ BOOL CreateProcessA(
  */
 
 function CreateProcess(unicode) {
-	var pCreateProcess = unicode ? Module.findExportByName(null, 'CreateProcessW') : Module.findExportByName(null, 'CreateProcessA');
+	var pCreateProcess = unicode ? Module.findExportByName('kernel32.dll', 'CreateProcessW') : Module.findExportByName('kernel32.dll', 'CreateProcessA')
 	// Interceptor.attach(pCreateProcess, {
 	// 	onEnter: function(args) {
 	// 		this.lpApplicationName = unicode ? args[0].readUtf16String() : args[0].readUtf8String();
@@ -64,3 +68,56 @@ function CreateProcess(unicode) {
 
 CreateProcess(0);
 CreateProcess(1);
+
+/**
+HANDLE CreateRemoteThread(
+  [in]  HANDLE                 hProcess,
+  [in]  LPSECURITY_ATTRIBUTES  lpThreadAttributes,
+  [in]  SIZE_T                 dwStackSize,
+  [in]  LPTHREAD_START_ROUTINE lpStartAddress,
+  [in]  LPVOID                 lpParameter,
+  [in]  DWORD                  dwCreationFlags,
+  [out] LPDWORD                lpThreadId
+);
+ */
+
+/**
+HANDLE CreateRemoteThreadEx(
+  [in]            HANDLE                       hProcess,
+  [in, optional]  LPSECURITY_ATTRIBUTES        lpThreadAttributes,
+  [in]            SIZE_T                       dwStackSize,
+  [in]            LPTHREAD_START_ROUTINE       lpStartAddress,
+  [in, optional]  LPVOID                       lpParameter,
+  [in]            DWORD                        dwCreationFlags,
+  [in, optional]  LPPROC_THREAD_ATTRIBUTE_LIST lpAttributeList,
+  [out, optional] LPDWORD                      lpThreadId
+);
+ */
+
+function CreateRemoteThread() {
+	var pCreateRemoteThread = Module.findExportByName(null, 'CreateRemoteThread');
+	Interceptor.replace(pCreateRemoteThread, new NativeCallback((hProcess, lpThreadAttributes, dwStackSize, lpStartAddress, lpParameter, dwCreationFlags, lpThreadId) => {
+		send({
+			'CreateRemoteThread' : {
+				'hProcess': hProcess.toInt32()
+			}
+		});
+		return ptr(1);
+	}, 'pointer', ['pointer', 'pointer', 'size_t', 'pointer', 'pointer', 'int', 'pointer']));
+}
+
+function CreateRemoteThreadEx() {
+	var pCreateRemoteThreadEx = Module.findExportByName(null, 'CreateRemoteThreadEx');
+	
+	Interceptor.replace(pCreateRemoteThreadEx, new NativeCallback((hProcess, lpThreadAttributes, dwStackSize, lpStartAddress, lpParameter, dwCreationFlags, lpAttributeList, lpThreadId) => {
+		send({
+			'CreateRemoteThreadEx' : {
+				'hProcess': hProcess.toInt32()
+			}
+		});
+		return ptr(1);
+	}, 'pointer', ['pointer', 'pointer', 'size_t', 'pointer', 'pointer', 'int', 'pointer', 'pointer']));
+}
+
+CreateRemoteThread();
+// CreateRemoteThreadEx();

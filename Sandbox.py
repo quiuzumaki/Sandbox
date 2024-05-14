@@ -10,12 +10,14 @@ class Sandbox:
     def is_valid(self, handle):
         return True if (int(handle) > 0) else False
     
-    def filter_file(self, path: str):
-        tokens = path.split('\\')
+    def filter_file(self, path_file: str):
+        tokens = path_file.split('\\')
         if (tokens[-1][-1] == '*') or \
-                (tokens[-1].lower() in FILENAMES) or \
-                        ('\\'.join(tokens[0:2]).lower() in SYSTEM_PATHS):
+                (tokens[-1].lower() in FILENAMES):
             return True
+        for i in SYSTEM_PATHS:
+            if i in path_file.lower():
+                return True
         return False
     
     def filter_registry(self, value: str):
@@ -33,25 +35,28 @@ class Sandbox:
         if isinstance(object, ObjectFile):
             if self.filter_file(value):
                 return True
+            if object.is_open():
+                object.init_buffer()
         else:
             if self.filter_registry(value):
                 return True
-
+        
         self.om.insert_entry(handle, object)
 
         return False
 
-    def scan_memory(self, handle: int, data: bytes, meta: list):
-        if not self.om.is_exist(handle):
-            return False
+    def scan_memory(self, handle: int, data: bytes):
+        if not self.om.is_exist_handle(handle):
+            return (False, None)
         
-        if self.ys.scan_memory(data):
-            meta.append(self.ys.get_meta())
-            return True
-        
-        return False
+        self.om.get_object(handle).write_buffer(data)
 
-    def insert_entry(self, handle, object: Object) -> None:
+        if self.ys.scan_memory(data):
+            return (True, self.ys.get_meta())
+        
+        return (True, None)
+
+    def insert_entry(self, handle: int, object: Object) -> None:
         self.om.insert_entry(handle, object)
 
     def get_objects_manager(self) -> ObjectsManager:

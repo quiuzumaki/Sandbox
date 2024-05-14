@@ -3,7 +3,7 @@ SYSTEM_PATHS = [
     "C:\\Program Files (x86)".lower(),
     "C:\\ProgramData".lower(),
     "C:\\Windows".lower(),
-    "?\\Volume".lower()
+    "\\\\?\\Volume".lower()
 ]
 
 FILENAMES = [

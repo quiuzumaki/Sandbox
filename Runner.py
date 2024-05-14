@@ -1,124 +1,115 @@
 import sys, argparse
 
-from ObjectsManager import ObjectFile, ObjectRegistry
+from ObjectsManager import *
 from Sandbox import Sandbox
 from Report import Report
 from Interceptor import Interceptor
 from Utils import *
+# from Detector import Detector
+
 
 sandbox = Sandbox()
-report = Report()
+report = None
 interceptor = None
 
-tmp_dir = create_dir('tmp')
+TMP_DIR_PATH = create_dir('tmp')
 tmp_filename =  None
-script_ps_name = None
+SCRIPT_PS_NAME = None
 
 def file(payload: dict, data = None):
     keys = list(payload.keys())
-    meta = []
     if keys[0] == 'CreateFile':
         handle = int(payload['Handle'], 16)
         path_file = payload['CreateFile']
-        if handle == -1:
-            if not sandbox.filter_file(path_file):
-                tmp_filename = tmp_dir + '\\' + str(path_file).split('\\')[-1]
-                interceptor.send({
-                    'type': 'scan_result', 
-                    'result': True, 
-                    'tmp_file': tmp_filename
-                })
-                report.add_create_file(path_file)
-        else:
-            sandbox.insert_entry(handle, ObjectFile(path_file))
-            tmp_filename = None
+        payload['Handle'] = handle
+
+        if not sandbox.filter(handle, ObjectFile(path_file, FILE_CREATION_DISPOSITION['CREATE'])):
+            report.add_record(payload)
 
     elif keys[0] == 'OpenFile':
         handle = int(payload['Handle'], 16)
-
-        if payload['OpenFile'].split('\\')[-1] == script_ps_name:
+        path_file = payload['OpenFile']
+        payload['Handle'] = handle
+        if path_file == SCRIPT_PS_NAME:
             return
         
-        if sandbox.filter(handle, ObjectFile(payload['OpenFile'])) == False:
-            report.add_open_file(payload['OpenFile'])
+        if not sandbox.filter(handle, ObjectFile(path_file, FILE_CREATION_DISPOSITION['OPEN'])):
+            report.add_record(payload)
 
     elif keys[0] == 'ReadFile':
-        result = False
         handle = int(payload['ReadFile'])
-
-        if sandbox.scan_memory(handle, data, meta): 
-            result = True
-            ob_name = sandbox.get_objects_manager().get_object_name(handle)
-            report.add_read_file({'FileName': ob_name})
+        ob = sandbox.get_objects_manager().get_object(handle)
+        if ob != None:
+            # print("ReadFile: ", ob.read_buffer())
+            report.add_record({'ReadFile': ob.get_name(), 'Handle': handle})
         
-        interceptor.send({'type': 'scan_result', 'result': result})
+        interceptor.send({
+            'type': 'scan_result',
+            'is_allowed': True if ob != None else False,
+            'content': b64encode(ob.read_buffer() if ob != None else b'')
+        })
 
     elif keys[0] == 'WriteFile':
-        result = False
         handle = int(payload['WriteFile'])
+        _, meta = sandbox.scan_memory(handle, data) 
+        ob = sandbox.get_objects_manager().get_object(handle)
+        if ob != None:
+            report.add_record({'WriteFile': ob.get_name(), 'Handle': handle, 'Yara Detector': meta})
+            # print("WriteFile: ", ob.read_buffer())
+        interceptor.send({
+            'type': 'scan_result',
+            'is_allowed': True if ob != None else False
+        })
         
-        if sandbox.scan_memory(handle, data, meta):
-            result = True
-            ob_name = sandbox.get_objects_manager().get_object_name(handle)
-            report.add_write_file({'FileName': ob_name, 'Detected Harmful Data' : meta[0]['description']})
-        
-        interceptor.send({'type': 'scan_result', 'result': result})
-
-    elif keys[0] == 'DeleteFile':
-        report.add_delete_file(payload['DeleteFile'])
-
-    elif keys[0] == 'MoveFile':
-        report.add_move_file(payload['MoveFile'])
-
-    elif keys[0] == 'CopyFile':
-        report.add_copy_file(payload['CopyFile'])
+    else:
+        report.add_record(payload)
 
 def registry(payload: dict, data = None):
     keys = list(payload.keys()) 
-    meta = []
     if 'RegCreateKey' in keys[0]:
-        if sandbox.filter(payload['Handle'], ObjectRegistry(payload['RegCreateKey'])) == False:
-            report.add_create_key(payload['RegCreateKey'])
+        if not sandbox.filter(payload['Handle'], ObjectRegistry(payload['RegCreateKey'])):
+            report.add_record(payload)
 
     elif 'RegOpenKey' in keys[0]:
-        if sandbox.filter(payload['Handle'], ObjectRegistry(payload['RegOpenKey'])) == False:
-            report.add_open_key(payload['RegOpenKey'])
+        if not sandbox.filter(payload['Handle'], ObjectRegistry(payload['RegOpenKey'])):
+            report.add_record(payload)
 
     elif keys[0] == 'RegSetValue':
-        result = False
-        if sandbox.scan_memory(payload['RegSetValue'], data, meta):
-            result = True
-            report.add_set_value(payload['RegSetValue'])
+        result, meta = sandbox.scan_memory(payload['Handle'], data)
+        if result:
+            payload.update({'Yara Detector': meta})
+            report.add_record(payload)
+        interceptor.send({
+            'type': 'scan_result', 
+            'result': result
+        })
+
+    elif keys[0] == 'RegSetValueEx':
+        data = data.replace(b'\x00', b'')
+        result, meta = sandbox.scan_memory(payload['Handle'], data)
+        if result:
+            payload.update({'Yara Detector': meta})
+            report.add_record(payload)
         interceptor.send({
             'type': 'scan_result', 
             'result': result
         })
 
     elif keys[0] == 'RegDeleteKey':
-        report.add_delete_key(payload['RegDeleteKey'])
+        report.add_record(payload)
 
     elif keys[0] == 'RegDeleteValue':
-        report.add_delete_value(payload['RegDeleteValue'])
+        report.add_record(payload)
 
     elif keys[0] == 'RegDeleteKeyValue':
         value = payload['SubKey'] + payload['ValueName']
-        report.add_delete_value_key(value)
+        report.add_record(payload)
 
 def internet(payload: dict):
-    keys = list(payload.keys())
-    if keys[0] == 'GetAddrInfo':
-        report.add_internet_domain(payload['GetAddrInfo'])
-    elif keys[0] == 'InternetOpenUrl':
-        pass
-    elif keys[0] == 'WinHttpGetProxyForUrl':
-        report.add_internet_url(payload['WinHttpGetProxyForUrl'])
+    report.add_record(payload)
 
 def process(payload: dict):
-    keys = list(payload.keys())
-    if keys[0] == 'CreateProcess':
-        report.add_create_process(payload['CreateProcess'])
-    else:
-        report.add_open_process(get_process_name(payload['PID']))
+    report.add_record(payload)
 
 def on_detached():
     print("The process has terminated!")
@@ -149,13 +140,15 @@ def main():
 
     args = parser.parse_args()
     pid = args.pid
+    path_file = args.file
 
-    if args.file != None:
-        global script_ps_name
-        script_ps_name = args.file
+    if path_file != None:
+        global SCRIPT_PS_NAME
+        SCRIPT_PS_NAME = os.path.abspath(path_file)
 
-    global interceptor
+    global interceptor, report
 
+    report = Report(pid)
     interceptor = Interceptor(pid)
     interceptor.recv(on_message)
     interceptor.on_detached(on_detached)
@@ -165,4 +158,5 @@ if __name__ == '__main__':
     try:
         main()
     except KeyboardInterrupt:
-        pass
+        report.dump()
+        exit(0)
