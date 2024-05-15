@@ -13,9 +13,19 @@ def write_buffer_table(hash, content):
     table[hash] = content
 
 class Object:
+    __table__: dict[str, bytes] = {}
+    
+    @staticmethod
+    def get_buffer(hash):
+        return Object.__table__.get(hash) if hash in Object.__table__.keys() else b''
+
+    @staticmethod
+    def write_buffer(hash, content):
+        Object.__table__[hash] = content
+
     def __init__(self, hash = None) -> None:
         self.hash = hash
-        self.buffer: bytes = get_buffer(hash)
+        self.buffer: bytes = Object.get_buffer(hash)
 
     def __str__(self) -> str:
         pass

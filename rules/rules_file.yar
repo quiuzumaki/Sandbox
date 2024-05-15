@@ -94,16 +94,6 @@ rule is_tar
 		$header
 }
 
-rule is_zlib 
-{
-	meta: 
-		description = "ZLIB Compression " 
-	strings: 
-		$header = { 78 ( 01 | 5E | 9C | DA | 20 | 7D | BB | F9 ) } 
-	condition: 
-		$header
-}
-
 rule is_pdf 
 {
 	meta: 

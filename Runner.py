@@ -5,14 +5,13 @@ from Sandbox import Sandbox
 from Report import Report
 from Interceptor import Interceptor
 from Utils import *
-# from Detector import Detector
+from Detector import Detector
 
 
 sandbox = Sandbox()
 report = None
 interceptor = None
 
-TMP_DIR_PATH = create_dir('tmp')
 tmp_filename =  None
 SCRIPT_PS_NAME = None
 
@@ -40,7 +39,6 @@ def file(payload: dict, data = None):
         handle = int(payload['ReadFile'])
         ob = sandbox.get_objects_manager().get_object(handle)
         if ob != None:
-            # print("ReadFile: ", ob.read_buffer())
             report.add_record({'ReadFile': ob.get_name(), 'Handle': handle})
         
         interceptor.send({
@@ -55,7 +53,6 @@ def file(payload: dict, data = None):
         ob = sandbox.get_objects_manager().get_object(handle)
         if ob != None:
             report.add_record({'WriteFile': ob.get_name(), 'Handle': handle, 'Yara Detector': meta})
-            # print("WriteFile: ", ob.read_buffer())
         interceptor.send({
             'type': 'scan_result',
             'is_allowed': True if ob != None else False
@@ -114,6 +111,7 @@ def process(payload: dict):
 def on_detached():
     print("The process has terminated!")
     report.dump()
+    Detector(report.get_record()).analysis()
     sys.exit()
 
 def on_message(message, data):
@@ -159,4 +157,5 @@ if __name__ == '__main__':
         main()
     except KeyboardInterrupt:
         report.dump()
+        # Detector(report.get_record()).analysis()
         exit(0)
