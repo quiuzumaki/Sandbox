@@ -5,14 +5,13 @@ from Sandbox import Sandbox
 from Report import Report
 from Interceptor import Interceptor
 from Utils import *
-from Detector import Detector
+import Detector
 
 
 sandbox = Sandbox()
 report = None
 interceptor = None
 
-tmp_filename =  None
 SCRIPT_PS_NAME = None
 
 def file(payload: dict, data = None):
@@ -57,7 +56,6 @@ def file(payload: dict, data = None):
             'type': 'scan_result',
             'is_allowed': True if ob != None else False
         })
-        
     else:
         report.add_record(payload)
 
@@ -111,7 +109,7 @@ def process(payload: dict):
 def on_detached():
     print("The process has terminated!")
     report.dump()
-    Detector(report.get_record()).analysis()
+    # Detector(report.get_record()).analysis()
     sys.exit()
 
 def on_message(message, data):
@@ -157,5 +155,6 @@ if __name__ == '__main__':
         main()
     except KeyboardInterrupt:
         report.dump()
-        # Detector(report.get_record()).analysis()
+        print('\nStarting to Analyze Report ...')
+        Detector.Detector(report.get_record()).analysis()
         exit(0)

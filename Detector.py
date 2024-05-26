@@ -17,69 +17,16 @@ def is_valid_domain(domain):
 
 def scan_ip(text):
     ip_pattern = r"\b(?:\d{1,3}\.){3}\d{1,3}\b"
-    return re.findall(ip_pattern, text)
+    match = re.findall(ip_pattern, text)
+    return None if match == [] else match[0]
 
 def scan_domain(text):
     domain_pattern = r"\b(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,6}\b"
-    return re.findall(domain_pattern, text)[0]
-
-REPORT_PATH = 'reports/report.json'
-IP_PATH = 'database/ips.txt'
-DOMAIN_PATH = 'database/domains.txt'
-COLORS = {
-    'red': '\033[31m',
-    'blue': '\033[44m',
-    'yellow': '\033[93m',
-    'green': '\033[32m',
-    'reset': '\033[0m'
-}
-
-VTAPI = '50a95916b4a61895ca898922330057ed69ca9b63d3d05095b0d906549e6ca55c'
-VT_URL_FILE = 'https://www.virustotal.com/api/v3/files'
-VT_URL_URL = 'https://www.virustotal.com/api/v3/urls'
-VT_URL_IP = 'https://www.virustotal.com/api/v3/ip_addresses'
-VT_URL_DOMAIN = 'https://www.virustotal.com/api/v3/domains'
-
-NUMBER_OF_TARGETS = 5
-
-class DataBase:
-    __database__: dict[str, list] = None
-    def __new__(cls):
-        if cls.__database__ is None:
-            cls.__database__ = {
-                'IP': open(IP_PATH, 'r').read().split('\n'), 
-                'DOMAIN': open(DOMAIN_PATH, 'r').read().split('\n')
-            }
-        return cls.__database__
-    
-    @staticmethod
-    def close():
-        open(IP_PATH, 'w').write('\n'.join(DataBase.__database__.get('IP')))
-        open(DOMAIN_PATH, 'w').write('\n'.join(DataBase.__database__.get('DOMAIN')))
-    
-    @staticmethod
-    def ip_is_exist(ip):
-        if ip in DataBase.__database__['IP']:
-            return True
-        else:
-            return vt_ip(VT_URL_IP, ip)
-        
-    @staticmethod
-    def domain_is_exist(domain):
-        if domain in DataBase.__database__['DOMAIN']:
-            return True
-        else:
-            return vt_domain(VT_URL_DOMAIN, domain)
-        
-    @staticmethod
-    def update(data, is_ip = True):
-        if is_ip:
-            DataBase.__database__['IP'].append(data)
-        else:
-            DataBase.__database__['DOMAIN'].append(data)
+    match = re.findall(domain_pattern, text)
+    return None if match == [] else match[0]
 
 def is_malware(vttext: dict) -> bool:
-    data: dict = vttext['attributes']['last_analysis_stats']
+    data: dict = vttext['data']['attributes']['last_analysis_stats']
     return True if data['malicious'] != 0 else False
     
 def vt_ip(ip):
@@ -121,6 +68,64 @@ def vt_url(myurl):
         return True
     return False
 
+
+REPORT_PATH = 'reports/report.json'
+IP_PATH = 'database/ips.txt'
+DOMAIN_PATH = 'database/domains.txt'
+COLORS = {
+    'red': '\033[31m',
+    'blue': '\033[44m',
+    'yellow': '\033[93m',
+    'green': '\033[32m',
+    'reset': '\033[0m'
+}
+
+VTAPI = '50a95916b4a61895ca898922330057ed69ca9b63d3d05095b0d906549e6ca55c'
+VT_URL_FILE = 'https://www.virustotal.com/api/v3/files'
+VT_URL_URL = 'https://www.virustotal.com/api/v3/urls'
+VT_URL_IP = 'https://www.virustotal.com/api/v3/ip_addresses'
+VT_URL_DOMAIN = 'https://www.virustotal.com/api/v3/domains'
+
+NUMBER_OF_TARGETS = 5
+
+class DataBase:
+    __database__: dict[str, list] = None
+    def __new__(cls):
+        if cls.__database__ is None:
+            cls.__database__: dict[str, list] = {
+                'IP': open(IP_PATH, 'r').read().split('\n'), 
+                'DOMAIN': open(DOMAIN_PATH, 'r').read().split('\n')
+            }
+        return cls.__database__
+    
+    @staticmethod
+    def close():
+        open(IP_PATH, 'w').write('\n'.join(DataBase.__database__.get('IP')))
+        open(DOMAIN_PATH, 'w').write('\n'.join(DataBase.__database__.get('DOMAIN')))
+    
+    @staticmethod
+    def ip_cheking(ip):
+        if ip in DataBase.__database__['IP']:
+            return True
+        else:
+            return vt_ip(ip)
+        
+    @staticmethod
+    def domain_checking(domain):
+        if domain in DataBase.__database__['DOMAIN']:
+            return True
+        else:
+            return vt_domain(domain)
+        
+    @staticmethod
+    def update(data, is_ip = True):
+        if is_ip:
+            DataBase.__database__['IP'].append(data)
+        else:
+            DataBase.__database__['DOMAIN'].append(data)
+
+database = DataBase()
+
 class Info:
     HANDLE: int = -1
     READ: bool = False
@@ -150,17 +155,24 @@ class Detector:
         for _, record in self.records.items():
             record_keys = list(record.keys())
             if ('CreateProcess' in record_keys) or ('CreateRemoteThread' in record_keys):
-                self.print_malware()
+                self.print_suspect()
             elif ('GetAddrInfo' in record_keys) or ('WinHttpGetProxyForUrl' in record_keys):
                 ip = record.get('GetAddrInfo')
                 url = record.get('WinHttpGetProxyForUrl')
 
-                if ip != None and is_valid_ipv4(ip):
-                    self.print_malware() if DataBase.ip_is_exist(ip) else self.print_suspect() 
+                if ip != None:
+                    if is_valid_ipv4(ip):
+                        self.print_malware() if DataBase.ip_cheking(ip) else self.print_suspect() 
+                    else:
+                        self.print_malware() if DataBase.domain_checking(ip) else self.print_suspect() 
 
                 if url != None:
-                    domain = scan_domain(url)
-                    self.print_malware() if DataBase.domain_is_exist(domain) else self.print_suspect() 
+                    ip = scan_ip(url)
+                    if ip != None:
+                        self.print_malware() if DataBase.ip_cheking(ip) else self.print_suspect()
+                    domain = scan_domain(url) 
+                    if domain != None:
+                        self.print_malware() if DataBase.domain_checking(domain) else self.print_suspect() 
             else:
                 if ('CreateFile' in record_keys) or ('OpenFile' in record_keys):
                     self.data.append(File(record['Handle']))
@@ -228,7 +240,3 @@ class Detector:
     def print_malware(self):
         print(COLORS['red'], 'Malicious', COLORS['reset'])
         exit(0)
-
-    
-detector = Detector()
-detector.analysis()

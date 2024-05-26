@@ -24,7 +24,8 @@ function InternetOpenUrl(unicode) {
 		}
 	});
 }
-
+InternetOpenUrl(0);
+InternetOpenUrl(1);
 /*
 INT WSAAPI GetAddrInfoW(
 	PCWSTR          pNodeName,
@@ -55,7 +56,10 @@ function GetAddrInfo(opts) {
                                         : Module.findExportByName("ws2_32.dll", "getaddrinfo");
     }
 
-	if(pGetAddrInfo == undefined) send({'error': 'GetAddrInfo'});
+	if(pGetAddrInfo == undefined) {
+		send({'error': 'GetAddrInfo'});
+		return;
+	}
 
 	Interceptor.attach(pGetAddrInfo, {
 		onEnter: function(args) {
@@ -67,6 +71,11 @@ function GetAddrInfo(opts) {
 		}
 	});
 }
+
+GetAddrInfo({unicode: 0, ex: 0});
+GetAddrInfo({unicode: 1, ex: 0});
+GetAddrInfo({unicode: 0, ex: 1});
+GetAddrInfo({unicode: 1, ex: 1});
 
 // WINHTTPAPI HINTERNET WinHttpOpen(
 //     [in, optional] LPCWSTR pszAgentW,
@@ -84,11 +93,17 @@ function GetAddrInfo(opts) {
 //);
 
 function WinHttp() {
-    var pWinHttpOpen = Module.findExportByName("winhttp.dll", "WinHttpOpen");
-    var pWinHttpCreateUrl = Module.findExportByName("winhttp.dll", "WinHttpCreateUrl");
+    var pWinHttpOpen = Module.findExportByName(null, "WinHttpOpen");
+    var pWinHttpCreateUrl = Module.findExportByName(null, "WinHttpCreateUrl");
 	
-	if (pWinHttpOpen == undefined) send({'error': 'WinHttpOpen'});
-	if (pWinHttpCreateUrl == undefined) send({'error': 'WinHttpCreateUrl'});
+	if (pWinHttpOpen == undefined) {
+		send({'error': 'WinHttpOpen'});
+		return;
+	}
+	if (pWinHttpCreateUrl == undefined) {
+		send({'error': 'WinHttpCreateUrl'});
+		return;
+	}
 
     Interceptor.attach(pWinHttpOpen, {
         onEnter: function(args) {
@@ -110,8 +125,14 @@ function WinHttp() {
     });
 }
 
+WinHttp();
+
 function WinHttpGetProxyForUrl() {
 	var pWinHttpGetProxyForUrl = Module.findExportByName("winhttp.dll", "WinHttpGetProxyForUrl");
+	if (pWinHttpGetProxyForUrl == undefined) {
+		send({'error': 'WinHttpGetProxyForUrl'});
+		return;
+	}
 	Interceptor.attach(pWinHttpGetProxyForUrl, {
 		onEnter: function(args) {
 			var url = args[1].readUtf16String();
@@ -122,16 +143,20 @@ function WinHttpGetProxyForUrl() {
 	})
 }
 
+WinHttpGetProxyForUrl();
+
 function GetProcAddress() {
 	var pGetProcAddress = Module.findExportByName(null, 'GetProcAddress');
-	if (pGetProcAddress == undefined) send({'error': 'GetProcAddress'});
-
+	if (pGetProcAddress == undefined) {
+		send({'error': 'GetProcAddress'});
+		return;
+	}
 	Interceptor.attach(pGetProcAddress, {
 		onEnter: function(args) {
 			var function_name = args[1].readUtf8String();
-			send({
-				'Function': function_name
-			})
+			// send({
+			// 	'Function': function_name
+			// })
 			if (function_name.includes('WinHttpOpen')) {
 				WinHttpGetProxyForUrl();
 			} else if (function_name.toLowerCase().includes('getaddrinfo')) {
@@ -144,4 +169,4 @@ function GetProcAddress() {
 	})
 }
 
-// GetProcAddress();
+GetProcAddress();

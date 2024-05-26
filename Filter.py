@@ -15,5 +15,7 @@ PERSISTENCE_PATH = [
     'Software\\Microsoft\\Windows\\CurrentVersion\\Run'.lower(),
     'Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce'.lower(),
     'Software\\Microsoft\\Windows\\CurrentVersion\\RunOnceEx'.lower(),
-    'Software\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon'.lower()
+    'Software\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon'.lower(),
+    'Software\\Microsoft\\Windows NT\\CurrentVersion\\Schedule\\TaskCache\\Tree'.lower(),
+    'Software\\Microsoft\\Windows NT\\CurrentVersion\\Schedule\\TaskCache\\Tasks'.lower()
 ]

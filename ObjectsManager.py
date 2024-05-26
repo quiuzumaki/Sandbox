@@ -1,31 +1,33 @@
-from Utils import md5hash, sha256hash
+from Utils import md5hash
 
 FILE_CREATION_DISPOSITION = {"CREATE": 1, "OPEN": 2}
 
 # Structure to save content of a file
-table: dict[str, bytes] = {}
+# table: dict[str, bytes] = {}
 
-def get_buffer(hash):
-    if hash in table.keys():
-        return table[hash]
-    return b''
-def write_buffer_table(hash, content):
-    table[hash] = content
+# def get_buffer(hash):
+#     if hash in table.keys():
+#         return table[hash]
+#     return b''
+# def write_buffer_table(hash, content):
+#     table[hash] = content
 
 class Object:
-    __table__: dict[str, bytes] = {}
+    __table__: dict[str, bytes] = {
+        # hash object name,
+        # buffer saves data
+    }
     
     @staticmethod
     def get_buffer(hash):
         return Object.__table__.get(hash) if hash in Object.__table__.keys() else b''
 
     @staticmethod
-    def write_buffer(hash, content):
+    def write_buffer_table(hash, content):
         Object.__table__[hash] = content
 
     def __init__(self, hash = None) -> None:
         self.hash = hash
-        self.buffer: bytes = Object.get_buffer(hash)
 
     def __str__(self) -> str:
         pass
@@ -37,17 +39,15 @@ class Object:
         pass
 
     def read_buffer(self) -> bytes:
-        return self.buffer
+        return Object.get_buffer(self.hash)
     
     def write_buffer(self, content: bytes, offset = -1):
-        arr = bytearray(self.buffer)
+        arr = bytearray(Object.get_buffer(self.hash))
         if offset == -1:
             arr.extend(content)
         else:
             arr[offset:offset+len(content)] = content
-        self.buffer = bytes(arr)
-        # table[self.hash] = self.buffer
-        write_buffer_table(self.hash, self.buffer)
+        Object.write_buffer_table(self.hash, bytes(arr))
 
 class ObjectFile(Object):
     def __init__(self, filename: str, disposition = None) -> None:
@@ -64,7 +64,6 @@ class ObjectFile(Object):
         return False
 
     def init_buffer(self):
-        # if self.buffer == b'':
         super().write_buffer(open(self.filename, 'rb').read())
 
     def is_open(self):
@@ -125,4 +124,5 @@ class ObjectsManager:
 
     def size(self) -> int:
         return len(self.handle_table)
+    
     
