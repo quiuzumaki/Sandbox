@@ -109,8 +109,10 @@ rule is_powershell
 	meta:
 		description = "Powershell Malware"
 	strings:
-        $ps1_cmd1 = "powershell.exe -nop -w hidden -c" nocase
-        $ps1_cmd2 = "powershell -nop -w hidden -c" nocase
+		$ps_exe = "powershell.exe" nocase
+		$ps_not_exe = "powershell" nocase
+        $ps1_cmd1 = "hidden" nocase
+        $ps1_cmd2 = "pypass" nocase
         $ps1_cmd3 = "Start-Process" nocase
         $ps1_cmd4 = "Invoke-Expression" nocase
         $ps1_cmd5 = "New-Object System.Net.WebClient" nocase
@@ -118,8 +120,7 @@ rule is_powershell
         $ps1_cmd7 = "iex" nocase
         $ps1_cmd8 = "Reflection.Assembly" nocase
         $ps1_cmd9 = "System.Management.Automation" nocase
-		$ps1_cmd10 = "powershell.exe -ep bypass" nocase
-        $ps1_cmd11 = "powershell -ep bypass" nocase
+		$ps1_cmd10 = "-executionpolicy" nocase
     condition:
-        any of them
+        ($ps_exe or $ps_not_exe) and (any of ($ps1_cmd*))
 }
